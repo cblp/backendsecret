@@ -1,6 +1,6 @@
-name: custom
-resolver: lts-13.14
-packages:
+resolver: lts-13.10
+
+extra-deps:
   - twitter-conduit-0.3.0
   - twitter-types-0.7.2.2
   - twitter-types-lens-0.7.2
