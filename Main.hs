@@ -1,23 +1,29 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import           Control.Lens
-import           Control.Monad.IO.Class
-import           Data.Conduit
-import qualified Data.Conduit.List as CL
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
-import           Web.Twitter.Conduit
-import           Web.Twitter.Types.Lens
+import           Control.Lens ((^.))
+import           Control.Monad.IO.Class (liftIO)
+import           Data.Conduit (runConduit, (.|))
+import qualified Data.Conduit.List as Conduit
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
+import           Web.Twitter.Conduit (Credential (Credential),
+                                      OAuth (oauthConsumerKey),
+                                      TWInfo (twToken), def, homeTimeline,
+                                      newManager, oauthConsumerSecret,
+                                      sourceWithMaxId, tlsManagerSettings,
+                                      twCredential, twOAuth, twitterOAuth)
+import           Web.Twitter.Types.Lens (statusId, statusText, statusUser,
+                                         userScreenName)
 
 main :: IO ()
 main = do
     mgr <- newManager tlsManagerSettings
     runConduit
         $   sourceWithMaxId twInfo mgr homeTimeline
-        .|  CL.isolate 60
-        .|  CL.mapM_ (\status ->
-                liftIO $ T.putStrLn $ T.concat
-                    [ T.pack . show $ status ^. statusId
+        .|  Conduit.isolate 60
+        .|  Conduit.mapM_ (\status ->
+                liftIO $ Text.putStrLn $ mconcat
+                    [ Text.pack . show $ status ^. statusId
                     , ": "
                     , status ^. statusUser . userScreenName
                     , ": "
@@ -25,10 +31,7 @@ main = do
                     ])
 
 twInfo :: TWInfo
-twInfo = def
-    { twToken = def{twOAuth = tokens, twCredential = credential}
-    , twProxy = Nothing
-    }
+twInfo = def{twToken = def{twOAuth = tokens, twCredential = credential}}
 
 -- To generate your access token and secret, you must have a Twitter app.
 -- https://developer.twitter.com/en/apps
