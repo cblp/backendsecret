@@ -1,11 +1,16 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Control.Lens ((^.))
 import           Control.Monad.IO.Class (liftIO)
+import           Data.ByteString (ByteString)
 import           Data.Conduit (runConduit, (.|))
 import qualified Data.Conduit.List as Conduit
 import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Text
 import qualified Data.Text.IO as Text
+import           System.Directory (XdgDirectory (XdgConfig), getXdgDirectory)
+import           System.FilePath ((</>))
 import           Web.Twitter.Conduit (Credential (Credential),
                                       OAuth (oauthConsumerKey),
                                       TWInfo (twToken), def, homeTimeline,
@@ -17,6 +22,16 @@ import           Web.Twitter.Types.Lens (statusId, statusText, statusUser,
 
 main :: IO ()
 main = do
+    oauthConsumerKey    <- readParam "consumer_key"
+    oauthConsumerSecret <- readParam "consumer_secret"
+    accessToken         <- readParam "access_token"
+    accessTokenSecret   <- readParam "access_token_secret"
+    let tokens = twitterOAuth{oauthConsumerKey, oauthConsumerSecret}
+    let credential = Credential
+            [ ("oauth_token", accessToken)
+            , ("oauth_token_secret", accessTokenSecret)
+            ]
+    let twInfo = def{twToken = def{twOAuth = tokens, twCredential = credential}}
     mgr <- newManager tlsManagerSettings
     runConduit
         $   sourceWithMaxId twInfo mgr homeTimeline
@@ -30,19 +45,7 @@ main = do
                     , status ^. statusText
                     ])
 
-twInfo :: TWInfo
-twInfo = def{twToken = def{twOAuth = tokens, twCredential = credential}}
-
--- To generate your access token and secret, you must have a Twitter app.
--- https://developer.twitter.com/en/apps
-tokens :: OAuth
-tokens = twitterOAuth
-    { oauthConsumerKey = "YOUR CONSUMER KEY"
-    , oauthConsumerSecret = "YOUR CONSUMER SECRET"
-    }
-
-credential :: Credential
-credential = Credential
-    [ ("oauth_token", "YOUR ACCESS TOKEN")
-    , ("oauth_token_secret", "YOUR ACCESS TOKEN SECRET")
-    ]
+readParam :: FilePath -> IO ByteString
+readParam name = do
+    configDir <- getXdgDirectory XdgConfig "backendsecret"
+    fmap (Text.encodeUtf8 . Text.strip) . Text.readFile $ configDir </> name
